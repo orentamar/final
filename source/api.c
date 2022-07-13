@@ -8,6 +8,7 @@
 //==========================================================
 //                    Variables
 //==========================================================
+
 //==========================================================
 //              STATE 1 - manual control
 //==========================================================
@@ -18,7 +19,8 @@ void stepper_motor_manual_control(void){
 //              STATE 2 - calibration
 //==========================================================
 void Joystick_based_PC_painter(void){
-
+    _BIS_SR(GIE);
+    sampleVxy();
 }
 //==========================================================
 //              STATE 3 - calibration
@@ -35,7 +37,7 @@ void stepper_motor_calibration(void){
 void script_mode(void){
 //            -------- Variables --------
     int script_size_counter;
-    int opcode, x, p, l, r, num_byte;
+    int opcode, x_times, p, l, r;//, num_byte;
     int script_lines_counter;
 
 //             --------  Stage 1 --------
@@ -58,63 +60,72 @@ void script_mode(void){
         script_size_counter = s.size[s.num_script - 1];         // Script size
         while(script_size_counter--){                           // Until we get all chars in script
             __bis_SR_register(LPM0_bits + GIE);                 // wait for new char in Tx
-            write_seg(s.pscript[s.num_script - 1], offset++);   // Write value (char from p_tx[0]) to flash
-            send_ack(1);
+            write_seg(s.pscript[s.num_script - 1], offset++);   // Write value (char from p_rx[0]) to flash
+
         }
         s.written[s.num_script - 1] = 1;                        // Mark script already written
         write_to_flash = 0;
     }
-//             --------  Stage 3  ---------
+
+//             --------  Stage 3 --------
+//Send Acknowledge after finishing saving the script in memory
+        send_ack();
+//             --------  Stage 4  ---------
 //                   Executing Script
 
     offset = 0;
     opcode = 0;
+    acknowledge = 0;
     script_lines_counter = s.lines[s.num_script - 1];
     while(script_lines_counter > 0){
         // Get Opcode
-        opcode = read_mem(2);
-        num_byte = 0;
+        opcode = read_mem(2);  // reading Opcode value
+//        num_byte = 0;
         switch(opcode){
             case 1:
-                while(read_mem(2) != 0x00)num_byte += 1;
-                offset -= num_byte * 2;
-                x = read_mem(num_byte * 2);
-                blink_RGB(ScriptModeDelay, x);
+                x_times = get_x_value();
+//                while(read_mem(2) != 0x00) num_byte += 1;   // count the total bytes of information
+//                offset -= num_byte * 2;                     // retuen offset to read all
+//                x_times = read_mem(num_byte * 2);
+                blink_RGB(ScriptModeDelay, x_times);
                 break;
             case 2:
-                while(read_mem(2) != 0x00)num_byte += 1;
-                offset -= num_byte * 2;
-                x = read_mem(num_byte * 2);
-                rlc_leds(ScriptModeDelay, x);
+                x_times = get_x_value();
+//                while(read_mem(2) != 0x00) num_byte += 1;
+//                offset -= num_byte * 2;
+//                x_times = read_mem(num_byte * 2);
+                rlc_leds(ScriptModeDelay, x_times);
                 break;
             case 3:
-                while(read_mem(2) != 0x00)num_byte += 1;
-                offset -= num_byte * 2;
-                x = read_mem(num_byte * 2);
-                rrc_leds(ScriptModeDelay, x);
+                x_times = get_x_value();
+//                while(read_mem(2) != 0x00) num_byte += 1;
+//                offset -= num_byte * 2;
+//                x_times = read_mem(num_byte * 2);
+                rrc_leds(ScriptModeDelay, x_times);
                 break;
             case 4:
-                while(read_mem(2) != 0x00)num_byte += 1;
-                offset -= num_byte * 2;
-                ScriptModeDelay = read_mem(num_byte * 2);
+                ScriptModeDelay =  get_x_value();   // update new delay
+//                while(read_mem(2) != 0x00) num_byte += 1;
+//                offset -= num_byte * 2;
+//                ScriptModeDelay = read_mem(num_byte * 2);
                 break;
             case 5:
                 clear_RGB;
                 Leds_CLR;
                 break;
             case 6:
-                p = read_mem(2);
-                servo_deg(p);
+                p = read_mem(2);    // get pointed degree
+                stepper_deg(p);       //
                 // Show the degree and distance (dynamically) onto PC screen
                 break;
             case 7:
                 l = read_mem(2);
                 r = read_mem(2);
-                servo_scan(l, r);
+                stepper_scan(l, r);
                 // Show the degree and distance (dynamically) onto PC screen
                 break;
             case 8:
-                state = 0;
+                state = 0; // sleep mode
                 break;
             default:
                 //opcode = 8;
@@ -126,12 +137,11 @@ void script_mode(void){
     offset = 0;
 
 
-//             --------  Stage 4 --------
-//    Send Acknowledge after finishing executing the script
-
-    IE2 &= ~UCA0RXIE;                          // Disable USCI_A0 RX interrupt
-    send_ack(500);
 }
+
+
+
+
 //==========================================================
 //              STATE 5- move or stop motor
 //==========================================================
@@ -180,7 +190,7 @@ void moving_stepper_motor(void){
 //**********************************************************
 
 //--------------------------------------------------
-volatile int Out_to_RGB = 0x01;
+//volatile int Out_to_RGB = 0x01;
 //==========================================================
 //                     STATE 1
 //==========================================================

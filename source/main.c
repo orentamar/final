@@ -53,7 +53,7 @@ void main(void){
                 break;
 
             case ScriptMode:
-                stepper_motor_calibration();
+                script_mode();
                 break;
 
             case move_motor_freely:

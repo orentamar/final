@@ -32,7 +32,7 @@ extern volatile unsigned int state;
 #define stop_motor 3
 
 //  status defines
-#define Status_Msg_Size = 30;
+#define Status_Msg_Size = 40;
 //------------------------------------------------
 //              SERVICE FUNCTIONS
 //------------------------------------------------
@@ -40,7 +40,11 @@ extern void GatherStatusInfo(void);
 extern void enable_transmition(void);
 __interrupt void USCI0RX_ISR(void);
 __interrupt void USCI0TX_ISR(void);
-
+//================================================
+//                 Joy Stick
+//================================================
+__interrupt void ADC10_ISR(void);
+extern void sampleVxy(void);
 //================================================
 //                Stepper Motor
 //================================================
@@ -115,10 +119,13 @@ extern int ScriptModeDelay;
 extern int write_to_flash;
 extern int offset;
 
+volatile int num_byte;
+extern int get_x_value(void);
+
 extern int receive_int(void);
 extern void receive_string(int *data);
-extern void send_ack(int data);
-extern void send_ss_data(int deg, int distance);
+extern void send_ack(void);
+//extern void send_ss_data(int deg, int distance);
 
 
 void write_seg (char* flash_ptr, int offset);
@@ -127,11 +134,12 @@ int read_mem(int offset);
 void blink_rgb(int delay, int times);
 void rlc_leds(int delay, int times);
 void rrc_leds(int delay, int times);
-void servo_deg(int deg);
-void servo_scan(int left, int right);
+void stepper_deg(int deg);
+void stepper_scan(int left, int right);
 
 //extern int state;
-extern volatile char p_tx[10];
+//extern volatile char p_tx[10];
+
 extern volatile char p_rx[10];
 extern int index;
 

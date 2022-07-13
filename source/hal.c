@@ -23,7 +23,7 @@ volatile unsigned int first_byte_MSG;  // UART RX
 
 //              --- Status ---
 
-volatile char StatusArray[30]; // as Msg_Size
+volatile char StatusArray[40]; // as Msg_Size
 unsigned int status_flg;
 
 unsigned int TXindex=0;
@@ -58,12 +58,16 @@ Scripts s = {{0}, {FLASH_INFO_SEG_B_START, FLASH_INFO_SEG_C_START, FLASH_INFO_SE
 int ScriptModeDelay = 50;
 int write_to_flash = 0;
 int offset = 0;
+int acknowledge = 0;
 
 volatile char p_rx[10];
-volatile char p_tx[10];
+//volatile char p_tx[10];
 int index;
 int degree;
 int start;
+
+
+
 //================================================
 //                   Joy Stick
 //================================================
@@ -72,17 +76,36 @@ int start;
 //------------------------------------------------
 volatile unsigned int Vx=103; // the middle - 103
 volatile unsigned int Vy=103;
+unsigned int res[2];
+
 volatile unsigned int JOISTICK_MODE=0;
+
+
+void sampleVxy(void){
+     ADC10CTL0 &= ~ENC;
+     while (ADC10CTL1 & ADC10BUSY);           // Wait if ADC10 core is active
+     ADC10SA = (int)res;                      // Data buffer start - here you save  the info
+     ADC10CTL0 |= ENC + ADC10SC;              // Sampling and conversion start
+      __bis_SR_register(CPUOFF + GIE);        // LPM0, ADC10_ISR will force exit
+
+ }
+
+#pragma vector=ADC10_VECTOR
+ __interrupt void ADC10_ISR(void){
+    ADC10CTL0 &= ~ADC10IFG;        // clear interrupt flag
+    Vx = res[0];
+    Vy = res[1];
+}
 //================================================
 //                    Stepper Motor
 //================================================
 //------------------------------------------------
 //                  Variables
 //------------------------------------------------
-volatile int SM_Step_Right = 0x40;       //0-0001-000
-volatile int SM_Step_Left = 0x08;       //0-1000-000
-volatile int SM_Half_Step_Right = 0x60; //0-0011-000
-volatile int SM_Half_Step_Left = 0x18; //0-1100-000
+volatile int SM_Step_Right = 0x80;       //1000-0000- h-4
+volatile int SM_Step_Left = 0x10;        //0001-0000- h-1
+//volatile int SM_Half_Step_Right = 0x0C;  //1100-0000- h-C
+//volatile int SM_Half_Step_Left = 0x03;   //0011-0000- h-3
 volatile int StepperDelay = 20;   // f = MHz
 
 
@@ -95,46 +118,46 @@ void step_angle_update(void){
         SM_Counter--;
         Phi_tmp -= Phi_step;
     }
-    Phi = Phi_tmp%360;
+    Phi = Phi_tmp%36000;
 }
 
 
 // Full step
 void move_forward(void){
-    SM_Step_Right <<= 1;
-        if (SM_Step_Right == 0x04){
-            SM_Step_Right = 0x40;
+    SM_Step_Right >>= 1;
+        if (SM_Step_Right == 0x08){
+            SM_Step_Right = 0x80;
         }
         SMPortOUT = SM_Step_Right;
-        Timer0_A_delay_ms(StepperDelay);
+        Timer1_A_delay_ms(StepperDelay);
 }
 
 void move_backward(void){
-    SM_Step_Left >>= 1;
-        if (SM_Step_Left == 0x80){
-            SM_Step_Left = 0x08;
+    SM_Step_Left <<= 1;
+        if (SM_Step_Left == 0x100){
+            SM_Step_Left = 0x10;
         }
         SMPortOUT = SM_Step_Left;
-        Timer0_A_delay_ms(StepperDelay);
+        Timer1_A_delay_ms(StepperDelay);
 }
-
-// Half step
-void move_forward_half(void){
-    SM_Half_Step_Right <<= 1;
-        if (SM_Half_Step_Right == 0x0C){
-            SM_Half_Step_Right = 0x60;
-        }
-        SMPortOUT = SM_Half_Step_Right;
-        Timer0_A_delay_ms(StepperDelay);
-}
-void move_backward_half(void){
-    SM_Half_Step_Left >>= 1;
-        if (SM_Half_Step_Left == 0xC0){
-            SM_Half_Step_Left = 0x18;
-        }
-        SMPortOUT = SM_Half_Step_Left;
-        Timer0_A_delay_ms(StepperDelay);
-}
+//
+//// Half step
+//void move_forward_half(void){
+//    SM_Half_Step_Right <<= 1;
+//        if (SM_Half_Step_Right == 0x0C){
+//            SM_Half_Step_Right = 0x60;
+//        }
+//        SMPortOUT = SM_Half_Step_Right;
+//        Timer1_A_delay_ms(StepperDelay);
+//}
+//void move_backward_half(void){
+//    SM_Half_Step_Left >>= 1;
+//        if (SM_Half_Step_Left == 0xC0){
+//            SM_Half_Step_Left = 0x18;
+//        }
+//        SMPortOUT = SM_Half_Step_Left;
+//        Timer1_A_delay_ms(StepperDelay);
+//}
 //==========================================================
 //              STATE 3 - calibration
 //==========================================================
@@ -149,7 +172,16 @@ void Phi_calculation(void){
 //==========================================================
 //              STATE 4 - Script Mode
 //==========================================================
+volatile int num_byte;
 
+int get_x_value(void){
+    int x;
+    num_byte = 0;
+    while(read_mem(2) != 0x00) num_byte += 1;   // count the total bytes of information
+    offset -= num_byte * 2;                     // retuen offset to read all
+    x = read_mem(num_byte * 2);
+    return x;
+}
 //----------------------------------------------------------
 int receive_int(void){
     index = 0;
@@ -159,7 +191,8 @@ int receive_int(void){
 void receive_string(int *data){
     while(1){
         __bis_SR_register(LPM0_bits + GIE);
-        if(p_rx[index - 1] == '\0'){
+//        if(p_rx[index - 1] == '\0'){
+        if(p_rx[index - 1] == '-'){
             *data = str2int(p_rx);
             index = 0;
             break;
@@ -167,22 +200,23 @@ void receive_string(int *data){
     }
 }
 //----------------------------------------------------------
-void send_ack(int data){
-    int len_data = int2str(p_tx,data);
-    p_tx[len_data + 1] = '\r';
+
+void send_ack(void){
+    acknowledge = 1;
     IE2 &= ~UCA0RXIE;                         // Disable USCI_A0 RX interrupt
-    IE2 |= UCA0TXIE;                                                // enable USCI_A0 TX interrupt
+    enable_transmition();
     __bis_SR_register(LPM0_bits + GIE);
 }
-//----------------------------------------------------------
-void send_ss_data(int deg, int distance){
-    int len_deg = int2str(p_tx,deg);
-    int len_dist =int2str(p_tx + len_deg + 1,distance);
-    p_tx[len_deg + 1 + len_dist] = '\r';
-    IE2 &= ~UCA0RXIE;                         // Disable USCI_A0 RX interrupt
-    IE2 |= UCA0TXIE;                          // enable USCI_A0 TX interrupt
-    __bis_SR_register(LPM0_bits + GIE);
-}
+
+////----------------------------------------------------------
+//void send_ss_data(int deg, int distance){
+//    int len_deg = int2str(p_tx,deg);
+//    int len_dist =int2str(p_tx + len_deg + 1,distance);
+//    p_tx[len_deg + 1 + len_dist] = '\r';
+//    IE2 &= ~UCA0RXIE;                         // Disable USCI_A0 RX interrupt
+//    IE2 |= UCA0TXIE;                          // enable USCI_A0 TX interrupt
+//    __bis_SR_register(LPM0_bits + GIE);
+//}
 
 //----------------------------------------------------------
 
@@ -231,10 +265,12 @@ int read_mem(int num_bytes){
 //            P2OUT += 0x04;
 //            RGB = P2OUT & 0x1C;
 //        }
-//        Timer1_A_delay_ms(delay);
+//        Timer1_A_delay_ms(delay); // 10ms
 //        times--;
 //    }
 //}
+volatile int Out_to_RGB = 0x01;
+
 void blink_RGB(int delay, int times){
     while(times){
         if (Out_to_RGB == 0x04){
@@ -243,7 +279,7 @@ void blink_RGB(int delay, int times){
             Out_to_RGB <<= 1;
         }
         RGBPortOUT = Out_to_RGB;
-        Timer1_A_delay_ms(delay);
+        Timer1_A_delay_ms(delay); // 10ms
         times--;
     }
 }
@@ -264,12 +300,12 @@ void rlc_leds(int delay, int times){
         for(i = 0; times && i < 8; i++, times--){
             if(i < 5){
                 P1OUT |= bits[i];
-                Timer1_A_delay_ms(delay);
+                Timer1_A_delay_ms(delay); // 10ms
                 P1OUT &= ~bits[i];
             }
             else{
                 P2OUT |= bits[i];
-                Timer1_A_delay_ms(delay);
+                Timer1_A_delay_ms(delay);// 10ms
                 P2OUT &= ~bits[i];
             }
         }
@@ -284,12 +320,12 @@ void rrc_leds(int delay, int times){
         for(i = 0; times && i < 8; i++, times--){
             if(i < 3){
                 P2OUT |= bits[i];
-                Timer1_A_delay_ms(delay);
+                Timer1_A_delay_ms(delay);// 10ms
                 P2OUT &= ~bits[i];
             }
             else{
                 P1OUT |= bits[i];
-                Timer1_A_delay_ms(delay);
+                Timer1_A_delay_ms(delay);// 10ms
                 P1OUT &= ~bits[i];
             }
         }
@@ -299,35 +335,35 @@ void rrc_leds(int delay, int times){
 //--------------------- Degree Scan ------------------------
 //----------------------------------------------------------
 
-void servo_deg(int deg){
-    servo_scan(deg, deg);
+void stepper_deg(int deg){
+    stepper_scan(deg, deg);
 }
 //----------------------------------------------------------
 
-void servo_scan(int left, int right){
+void stepper_scan(int left, int right){ // TODO: CHANGE FUNCTION TO MOTOR!
     int distance, i;
     int deg_inc = 9;
     int deg = left;
-    int servo_deg_flag = (left == right) && (state == 3);
+    int stepper_deg_flag = (left == right) && (state == 4);
 
     // Rotate to 0 degree
-    PWM_Servo_config(deg);
-    Timer0_A_delay_ms(50);
-    StopTimers();
-    p_rx[0] = state + '0';
+//    PWM_Servo_config(deg);
+//    Timer0_A_delay_ms(50);
+//    StopTimers();
+//    p_rx[0] = state + '0';
 
     // Delay before scan
-    for(i = 0; i < 5; i++)Timer0_A_delay_ms(50);
+    for(i = 0; i < 5; i++)Timer0_A_delay_ms(StepperDelay);
     StopTimers();
 
-    while(state != 0 && !(state == 3 && deg >= right + deg_inc)){
+    while(state != 0 && !(state == 4 && deg >= right + deg_inc)){
         __bis_SR_register(GIE);
         state = receive_int();
         __bic_SR_register(GIE);
         distance = SS_Trig_config();
         send_ss_data(deg, distance);
 
-        if(servo_deg_flag)break;// state == 3 servo_deg();
+        if(stepper_deg_flag)break;// state == 4 stepper_deg();
 
         if(state != 2){
             // Increase degree
@@ -340,7 +376,7 @@ void servo_scan(int left, int right){
         Timer0_A_delay_ms(50);
         StopTimers();
     }
-    for(i = 0; i < 5; i++)Timer0_A_delay_ms(50);
+    for(i = 0; i < 5; i++)Timer0_A_delay_ms(StepperDelay);
 }
 
 
@@ -466,12 +502,20 @@ __interrupt void USCI0TX_ISR(void)
             IE2 |= UCA0RXIE;                             // Enable RX interrupt
             status_flg = 0;
         }
+    }else if ((state == 4) && (acknowledge == 1)){
+        TxBuffer =  '!';
+        // drop flags
+        index = 0;
+        acknowledge = 0;
+
+        IE2 &= ~UCA0TXIE;                            // Disable USCI_A0 TX interrupt
+        IE2 |= UCA0RXIE;                             // Enable USCI_A0 RX interrupt
+        __bic_SR_register_on_exit(LPM0_bits + GIE);  // Exit LPM0 on return to main
+
     }else{
       IE2 &= ~UCA0TXIE;                                  // Disable TX interrupt
     }
 }
-
-
 //===========================================================
 //          Timer A0 Interrupt Service Routine
 //===========================================================
@@ -485,26 +529,33 @@ __interrupt void Timer_A(void){
 
 void StopTimers(){
     TA0CTL &= ~ 0x18;
-//    TA1CTL &= ~ 0x18;
+    TA1CTL &= ~ 0x18;
 }
 //===========================================================
 //                     Delay [ms]
 //===========================================================
+//
+//void Timer0_A_delay_ms(int ms){
+////  int tmp = ms;
+//  TACCTL0 = CCIE;                             // CCR0 interrupt enabled
+//  TACCR0 = ms*131;
+//  TACTL = TASSEL_2 + ID_3 + MC_1 + TACLR;   // SMCLK/8 = 131072[Hz], upmode
+//  __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ interrupt
+//}
 
 void Timer0_A_delay_ms(int ms){
-  int tmp = ms;
-  TACCTL0 = CCIE;                             // CCR0 interrupt enabled
-  TACCR0 = ms*131;
-  TACTL = TASSEL_2 + ID_3 + MC_1 + TACLR;   // SMCLK/8 = 131072[Hz], upmode
+//  int tmp = ms;
+  TA0CCTL0 = CCIE;                             // CCR0 interrupt enabled
+  TA0CCR0 = ms*131;
+  TA0CTL = TASSEL_2 + ID_3 + MC_1 + TACLR;   // SMCLK/8 = 131072[Hz], upmode
   __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ interrupt
 }
 
-
-void Timer1_A_delay_ms(int ms){
+void Timer1_A_delay_ms(int ms_in10){           // 10ms
   TA1CCTL0 = CCIE;                             // CCR0 interrupt enabled
-  TA1CCR0 = ms * 131;
-  TA1CTL = TASSEL_2 + ID_3 + MC_1 + TACLR;   // SMCLK/8 = 131072[Hz], upmode
-  __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ interrupt
+  TA1CCR0 = ms_in10 * 1310;
+  TA1CTL = TASSEL_2 + ID_3 + MC_1 + TACLR;     // SMCLK/8 = 131072[Hz], upmode
+  __bis_SR_register(LPM0_bits + GIE);          // Enter LPM0 w/ interrupt
 }
 //void delay_ms(unsigned int ms)
 //{
@@ -557,7 +608,7 @@ void int2str_TX(char *str, unsigned int num){
     num /= 10;
   }
   strSize += len;
-  str[strSize] = '\0';
+//  str[strSize] = '\0';
 }
 //===========================================================
 //            string to integer converter
@@ -682,10 +733,10 @@ void SC_from_POT(void){
 //==========================================================
 //         ADC10 Interrupt Service Routine
 //==========================================================
-#pragma vector=ADC10_VECTOR
-__interrupt void ADC10_ISR(void){
-    __bic_SR_register_on_exit(CPUOFF);        // Clear CPUOFF bit from 0(SR)
-}
+//#pragma vector=ADC10_VECTOR
+//__interrupt void ADC10_ISR(void){
+//    __bic_SR_register_on_exit(CPUOFF);        // Clear CPUOFF bit from 0(SR)
+//}
 //==========================================================
 //                     STATE 6
 //==========================================================

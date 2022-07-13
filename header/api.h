@@ -19,6 +19,9 @@ extern volatile int StepperDelay;
 //------------------------------------------------
 // state 3 - calibration
 extern volatile int SM_Counter;
+//------------------------------------------------
+// state 3 - Script mode
+extern int acknowledge;
 //================================================
 //        SERVICE FUNCTIONS
 //================================================

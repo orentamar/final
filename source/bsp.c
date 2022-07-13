@@ -38,9 +38,9 @@ void InitGPIO(void){
 //***********************************************
 //         Stepper Motor configuration
 //***********************************************
-	// P2.3-P2.6 are both for motor and 4 leds
-	SMPortSel &= ~(BIT3 + BIT4 + BIT5 + BIT6);     //Stepper Motor:Phases:A-2.3,B-2.4,C-2.5, D-2.6 as GPIO
-	SMPortDir |= (BIT3 + BIT4 + BIT5 + BIT6);      //Stepper Motor: as GPIO-output
+    // P2.4-P2.7 are both for motor and 4 leds
+    SMPortSel &= ~(BIT4 + BIT5 + BIT6 + BIT7);     //Stepper Motor:Phases:A-2.4,B-2.5,C-2.6,D-2.7 as GPIO
+    SMPortDir |= (BIT4 + BIT5 + BIT6 + BIT7);      //Stepper Motor: as GPIO-output
 
 //***********************************************
 //         Joy Stick configuration
@@ -50,14 +50,16 @@ void InitGPIO(void){
 //***********************************************
 //             LEDs configuration
 //***********************************************
-// P1 LEDs: 1.7,1.6,1.0, P2 LEDs: P2.7
-// P2.3-P2.6 are both for motor and 4 leds
+// P1 LEDs: 1.7,1.6,1.0, P2 LEDs: P2.3
+
+// P2.4-P2.7 are both for motor and 4 leds
+
     LEDPort1Sel  &= ~(BIT7 + BIT6 + BIT0);   //LEDs: 1.7,1.6,1.0 as GPIO
 
     LEDPort1Dir  |= (BIT7 + BIT6 + BIT0);    //LEDs: as GPIO-input
 
-    LEDPort2Sel  &= ~(BIT7);                 //LEDs: 2.7 as GPIO
-    LEDPort2Dir  |= ~(BIT7);                 //LEDs: as GPIO-input
+    LEDPort2Sel  &= ~(BIT3);                 //LEDs: 2.3 as GPIO
+    LEDPort2Dir  |= ~(BIT3);                 //LEDs: as GPIO-input
 
     Leds_CLR;
 //***********************************************
@@ -70,11 +72,16 @@ void InitGPIO(void){
 //***********************************************
 //            ADC configuration
 //***********************************************
-    ADC_Ctrl0 = ADC_SHT + MSC + SREF_0;
-    ADC_Ctrl1 = ADC_Sel + INCH_7 + CONSEQ_1;
-    ADC_Ch_En |= BIT3 + BIT4 + BIT5;
-    ADC_DTC = 0x03;
+//    ADC_Ctrl0 = ADC_SHT + MSC + SREF_0;
+//    ADC_Ctrl1 = ADC_Sel + INCH_7 + CONSEQ_1;
+//    ADC_Ch_En |= BIT3 + BIT4 + BIT5;
+//    ADC_DTC = 0x03;
 
+    ADC10CTL1 = INCH_4 + CONSEQ_1;            // A3/A2/A1, single sequence
+    ADC10CTL0 = ADC10SHT_2 + MSC + ADC10ON + ADC10IE;
+
+    ADC10DTC1 = 0x02;                         // 2 conversions
+    ADC10AE0 |= 0x18;                         // P1.3,2,1 ADC10 option select
     //***********************************************
     //            UART configuration
     //***********************************************

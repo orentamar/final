@@ -62,7 +62,7 @@ extern void InitUART(void);
 #define  LEDPort2OUT     P2OUT
 
 #define Leds_CLR  LEDPort1OUT &= ~(BIT7 + BIT6 + BIT0);\
-                  LEDPort2OUT &= ~(BIT7);
+                  LEDPort2OUT &= ~(BIT7 + BIT6 + BIT5 + BIT4 + BIT2);
 
 
 ////***********************************************
