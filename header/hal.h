@@ -146,9 +146,9 @@ extern int index;
 extern void StopTimers();
 extern void Timer0_A_delay_ms(int mili_sec);
 extern void Timer1_A_delay_ms(int mili_sec);
-extern void PWM_Servo_config(int deg);
-extern int SS_Trig_config();
-extern void SS_Echo_config();
+//extern void PWM_Servo_config(int deg);
+//extern int SS_Trig_config();
+//extern void SS_Echo_config();
 //================================================
 //                  Delay [ms]
 //================================================

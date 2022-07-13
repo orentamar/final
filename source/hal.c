@@ -360,8 +360,8 @@ void stepper_scan(int left, int right){ // TODO: CHANGE FUNCTION TO MOTOR!
         __bis_SR_register(GIE);
         state = receive_int();
         __bic_SR_register(GIE);
-        distance = SS_Trig_config();
-        send_ss_data(deg, distance);
+//        distance = SS_Trig_config();
+//        send_ss_data(deg, distance);
 
         if(stepper_deg_flag)break;// state == 4 stepper_deg();
 
@@ -372,7 +372,7 @@ void stepper_scan(int left, int right){ // TODO: CHANGE FUNCTION TO MOTOR!
             else if(state == 3)
                 deg = (deg + deg_inc) % (right + 2 * deg_inc);
         }
-        PWM_Servo_config(deg);
+//        PWM_Servo_config(deg);
         Timer0_A_delay_ms(50);
         StopTimers();
     }
