@@ -433,12 +433,12 @@ __interrupt void USCI0RX_ISR(void)
         if (Msg_location==1){ // Get status value
             state = RxBuffer;
             Msg_location ++;
-        }else if (Msg_location==2) && ((state ==3) || (state ==5)){ // Get status_stage value for calibration or moving freely
+        }else if ((Msg_location==2) && ((state ==3) || (state ==5))){ // Get status_stage value for calibration or moving freely
             state_stage =  RxBuffer;
             Msg_location = 0;
             state_flg = 0; // Done getting all state information
             __bic_SR_register_on_exit(LPM0_bits + GIE);  // Exit LPM0 on return to main
-        }else if (state ==4){
+        }else if (state ==4) {
             Msg_location = 0;
             while (!(IFG2&UCA0TXIFG));                // USCI_A0 TX buffer ready?
             if(write_to_flash)

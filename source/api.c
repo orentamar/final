@@ -27,7 +27,7 @@ void stepper_motor_calibration(void){
         SM_Counter = 0;
         moving_stepper_motor();
         Phi_calculation();
-
+}
 //==========================================================
 //              STATE 4 - Script Mode
 //==========================================================
