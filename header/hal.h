@@ -156,11 +156,14 @@ int read_mem(int offset);
 void blink_rgb(int delay, int times);
 
 // rotate functions
+#define left_rotate 1
+#define right_rotate 2
+
 extern volatile int first_rotate;
 extern volatile int PortNum;
 extern volatile int LEDs_val_P1;
 extern volatile int LEDs_val_P2;
-
+extern volatile int last_rotate;
 void rlc_leds(int delay, int times);
 void rrc_leds(int delay, int times);
 

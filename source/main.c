@@ -9,8 +9,8 @@
 volatile unsigned int state =7;  //Sleeping mode, enable interrupts
 
 // temp
-unsigned long left_ang_tmp = 180;
-unsigned long right_ang_tmp = 270;
+unsigned long left_ang_tmp = 0;
+unsigned long right_ang_tmp = 0;
 int x_times_tmp = 4;
 //volatile int SM_Step = 0x8;       //0-0001-000
 //volatile int SM_Half_Step = 0x18; //0-0011-000
@@ -79,30 +79,30 @@ void main(void){
 
             case 7:
 
-                blink_RGB(ScriptModeDelay, x_times_tmp);
+//                blink_RGB(ScriptModeDelay, x_times_tmp);
 
                 rlc_leds(ScriptModeDelay, x_times_tmp);
+                x_times_tmp +=1;
+                rrc_leds(ScriptModeDelay, x_times_tmp);
 
-//                rrc_leds(ScriptModeDelay, x_times_tmp);
-
-                ScriptModeDelay = 100;   // update new delay
+//                ScriptModeDelay = 50;   // update new delay
 
 
 //                clear_RGB();
 //                Leds_CLR;
 
-
-                scan_mode = 1;
-                stepper_deg(left_ang_tmp);       //
-                // Show the degree and distance (dynamically) onto PC screen
-                scan_mode = 0;
-
-
-                scan_mode = 1;
-                // Show the degree and distance (dynamically) onto PC screen
-                stepper_scan(left_ang_tmp, right_ang_tmp);
-
-                scan_mode = 0;
+//
+//                scan_mode = 1;
+//                stepper_deg(left_ang_tmp);       //
+//                // Show the degree and distance (dynamically) onto PC screen
+//                scan_mode = 0;
+//
+//
+//                scan_mode = 1;
+//                // Show the degree and distance (dynamically) onto PC screen
+//                stepper_scan(left_ang_tmp, right_ang_tmp);
+//
+//                scan_mode = 0;
 
                 break;
 //                state = 0; // sleep mode

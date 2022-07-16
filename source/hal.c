@@ -456,34 +456,20 @@ void clear_RGB(void){
 //----------------------------------------------------------
 //------------------------ LEDs ----------------------------
 //----------------------------------------------------------
-//
-//void rlc_leds(int delay, int times){
-//    int i;
-//    int bits[4] = {BIT0, BIT6, BIT7, BIT4};
-//    while(times){
-//        for(i = 0; times && i < 4; i++, times--){
-//            if(i < 3){
-//                P1OUT |= bits[i];
-//                Timer1_A_delay_10ms(delay); // 10ms
-//                P1OUT &= ~bits[i];
-//            }
-//            else{
-//                P2OUT |= bits[i];
-//                Timer1_A_delay_10ms(delay);// 10ms
-//                P2OUT &= ~bits[i];
-//            }
-//        }
-//    }
-//}
+
 // Initialize Variables
 volatile int first_rotate = 1;
 volatile int PortNum = 1;
 volatile int LEDs_val_P1 = 0x00;
 volatile int LEDs_val_P2 = 0x00;
-
+volatile int last_rotate = 0;
 //----------------------------------------------------------
 
 void rlc_leds(int delay, int times){
+
+    if ((last_rotate == right_rotate) && (LEDs_val_P1 == 0x01)){
+        PortNum = 1;
+    }
     while(times){
 
         times --;
@@ -494,7 +480,7 @@ void rlc_leds(int delay, int times){
         }
         if (PortNum == 1){
             LEDs_val_P2 = 0x00;
-            if (LEDs_val_P1 == 0x00){
+            if (LEDs_val_P1 == 0x00 || LEDs_val_P1 == 0x80){
                 LEDs_val_P1 = 0x01;         //0000-0001 P1.0
             }else if (LEDs_val_P1 == 0x01){
                 LEDs_val_P1 = 0x40;         //0100-0000 P1.6
@@ -516,27 +502,50 @@ void rlc_leds(int delay, int times){
         Timer1_A_delay_10ms(delay); // 10ms
 
     }
+    last_rotate = left_rotate;
 }
 
 //----------------------------------------------------------
 
 void rrc_leds(int delay, int times){
-    int i;
-    int bits[4] = {BIT4, BIT7, BIT6, BIT0};
-    while(times){
-        for(i = 0; times && i < 4; i++, times--){
-            if(i < 1){
-                P2OUT |= bits[i];
-                Timer1_A_delay_10ms(delay);// 10ms
-                P2OUT &= ~bits[i];
-            }
-            else{
-                P1OUT |= bits[i];
-                Timer1_A_delay_10ms(delay);// 10ms
-                P1OUT &= ~bits[i];
-            }
-        }
+
+    if ((last_rotate == left_rotate) && (LEDs_val_P1 == 0x80)){
+        PortNum = 1;
     }
+    while(times){
+
+        times --;
+
+        if(first_rotate){
+            first_rotate = 0;
+            PortNum = 2;
+        }
+        if (PortNum == 1){
+            LEDs_val_P2 = 0x00;
+            if (LEDs_val_P1 == 0x00 || LEDs_val_P1 == 0x01){
+                LEDs_val_P1 = 0x80;         //1000-0000 P1.7
+            }else if (LEDs_val_P1 == 0x80){
+                LEDs_val_P1 = 0x40;         //0100-0000 P1.6
+            }else if (LEDs_val_P1 == 0x40){
+                LEDs_val_P1 = 0x01;         //0000-0001 P1.0
+                PortNum = 2;            // move to port 2 to next rotates
+
+            }
+
+        } else { // PortNum == 2
+            LEDs_val_P1 = 0x00;
+            LEDs_val_P2 = 0x10;            //0001-0000 P2.4
+            PortNum = 1;               // move to port 1 to next rotates
+
+        }
+
+        P1OUT = LEDs_val_P1;
+        P2OUT = LEDs_val_P2;
+        Timer1_A_delay_10ms(delay); // 10ms
+
+    }
+    last_rotate = right_rotate;
+
 }
 
 
